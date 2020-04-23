@@ -2,7 +2,7 @@ import * as bodyParser from 'body-parser';
 // express로 사용되는 app
 import express from 'express';
 
-import { addDatas, addUser } from './addUsers';
+import { addDatas, addUser, updateAllLoginUserAddUserUid } from './addUsers';
 import { addBeverage, findAllBeverage } from './controller/beverage/beverage';
 import {
   addEvent,
@@ -31,6 +31,8 @@ import {
   updateRCEvent
 } from './controller/random_coffee/random_coffee';
 import {
+  addFuseToVacation,
+  addFuseToVacationByGroupID,
   addFuseWorkLog,
   addUserQueue,
   addWorkLog,
@@ -39,8 +41,10 @@ import {
   deleteOverWorkTime,
   deleteUserQueue,
   deleteWorkLog,
+  disableExpiredFuseToVacation,
   findAllFuseOverTime,
   findAllFuseOverTimeByUserId,
+  findAllFuseToVacationByUserId,
   findAllOverTime,
   findAllOverTimeByUserId,
   findWeekOverTimeByUserId,
@@ -56,7 +60,11 @@ import {
   storeOverWorkTime,
   updateAllUsersOverWorkTime,
   updateAllUsersOverWorkTimeTodayWorkker,
-  updateUserOverWorkTime
+  updateUserOverWorkTime,
+  useFuseToVacation,
+  forceAddOverWorkTime,
+  addGroupInfo,
+  deleteGroupInfo
 } from './functions';
 import { SlackSlashCommand } from './models/interface/SlackSlashCommand';
 import { Users } from './models/Users';
@@ -83,6 +91,8 @@ function routeList() {
   router.get('/get_all', getAll);
   router.get('/get_groups', getGroups); // 그룹 안에 멤버를 반환
   router.get('/get_group_infos', getAllGroupInfo); // 그룹의 정보를 조회
+  router.post('/add_group', addGroupInfo); // 그룹 추가
+  router.delete('/delete_group/:group_id', deleteGroupInfo); // 그룹 삭제
   router.get('/get_user', getUser);
   router.post('/message_action', newMsgAction);
   router.post('/update_record', modify);
@@ -103,6 +113,22 @@ function routeList() {
     const findLoginUser = await Users.findLoginUser({ userUid });
     return res.send({ ...findLoginUser });
   });
+  router.put('/active_admin_role/:user_id', async (req, res) => {
+    const userUid = req.params['user_id'];
+    if (!!userUid === false) {
+      return res.status(404);
+    }
+    const findLoginUser = await Users.activeAdminRole({ userUid });
+    return res.send({ ...findLoginUser });
+  });
+  router.put('/deactive_admin_role/:user_id', async (req, res) => {
+    const userUid = req.params['user_id'];
+    if (!!userUid === false) {
+      return res.status(404);
+    }
+    const findLoginUser = await Users.deActiveAdminRole({ userUid });
+    return res.send({ ...findLoginUser });
+  });
   router.post('/over_work', storeOverWorkTime);
   router.post('/over_works/sync', updateAllUsersOverWorkTime); // 전체 사용자의 추가근무를 기록
   router.post(
@@ -110,7 +136,9 @@ function routeList() {
     updateAllUsersOverWorkTimeTodayWorkker
   ); // 출근 기록을 보유한 전체 사용자 추가 근무 기록 생성
 
-  router.delete('/over_work', deleteOverWorkTime); // 추가 근무 기록 삭제
+  router.delete('/over_work', deleteOverWorkTime); // 정산한 특정 주간의 정산 기록 삭제
+
+  router.post('/over_work/force_add', forceAddOverWorkTime); // 강제로 특정 주간에 정산 기록을 넣는다.
 
   router.post('/over_work/sync', updateUserOverWorkTime); // 특정 사용자의 추가근무 기록
   router.get('/over_works', findAllOverTime); // 누적된 추가근무시간 목록
@@ -125,7 +153,23 @@ function routeList() {
   router.delete('/get_user/:authId/queue/:key', deleteUserQueue);
   router.get('/slack_users', getAllSlackUserInfo);
   router.get('/yotest', addDatas);
+  router.get('/yoyotest', updateAllLoginUserAddUserUid);
   router.post('/here_comes_new/:user_slack_id', addUser);
+
+  router.post(
+    '/fuse_over_work_to_vacation/:group_id',
+    addFuseToVacationByGroupID
+  ); // 특정 그룹 내의 모든 사용자 차감 시간을 휴가로 바꿔서 저장
+  router.post('/fuse_over_work_to_vacation', addFuseToVacation); // 차감 시간을 휴가로 바꿔서 저장
+  router.get(
+    '/fuse_over_work_to_vacations/:user_id',
+    findAllFuseToVacationByUserId
+  );
+  router.post('/use_fuse_over_work_to_vacation', useFuseToVacation);
+  router.put(
+    '/disable_fuse_over_work_to_vacation/:group_id',
+    disableExpiredFuseToVacation
+  ); // 특정 그룹 내의 모든 사용자의 휴가 금고 내에 특정 휴가를 만료처리한다.
 
   router.post('/groups/:groupId/:userId', addMemberToGroup);
   router.delete('/groups/:groupId/:userId', deleteMemberToGroup);
