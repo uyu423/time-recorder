@@ -1,15 +1,16 @@
 import 'dotenv/config'; // tslint:disable-line
+
+if (process.env.RUN_ENV === 'server') {
+  require('newrelic');
+  console.log('NODE_ENV is production, so execute Newrelic agent.');
+}
+
 import debug from 'debug';
 import http from 'http';
 
 import app from './app';
 
 const log = debug('tr:server');
-
-if (process.env.RUN_ENV === 'server') {
-  require('newrelic');
-  console.log('NODE_ENV is production, so execute Newrelic agent.');
-}
 
 const server = http.createServer(app);
 
