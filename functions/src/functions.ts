@@ -1,8 +1,7 @@
+import { WebClient } from '@slack/client';
 import debug from 'debug';
 import { Request, Response } from 'express';
 import * as luxon from 'luxon';
-
-import { WebClient } from '@slack/client';
 
 import { EN_WORK_TITLE_KR, EN_WORK_TYPE } from './contants/enum/EN_WORK_TYPE';
 import { Groups } from './models/Groups';
@@ -710,10 +709,16 @@ export async function addGroupInfo(request, response) {
 }
 export async function deleteGroupInfo(request, response) {
   const { group_id } = request.params;
+  const body = request.body || {};
   if (Util.isEmpty(group_id)) {
     return response.status(400).end();
   }
   await Users.deleteGroup({ group_id });
+  await slackClient.chat.postMessage({
+    channel: 'zz_question_dev',
+    username: '워크로그',
+    text: `누군가 ${body.group_name || '(그룹명 없음!)'} 그룹을 삭제했습니다? 그건 바로 ${body.initiator || '(실행자 이름 없음!)'}`,
+  });
   return response.status(200).end();
 }
 export async function getUser(request, response) {
